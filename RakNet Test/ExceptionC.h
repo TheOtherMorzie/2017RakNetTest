@@ -14,3 +14,7 @@ struct ExceptionC
 #define THROWC(e)\
 throw ExceptionC(e, __LINE__, __FILE__);
 
+#define EVALUATEC(e)\
+if (!(e))\
+throw ExceptionC("Evaluation failed!", __LINE__, __FILE__);
+

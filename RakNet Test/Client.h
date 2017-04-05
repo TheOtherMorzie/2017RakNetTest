@@ -7,6 +7,8 @@
 
 #include <RakNetTypes.h>
 
+
+
 class Client : ThreadBase
 {
 public:

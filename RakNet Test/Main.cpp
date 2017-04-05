@@ -608,13 +608,13 @@ int main()
 			unsigned __int16 bitsPerSample;
 			memcpy(&bitsPerSample, &(wf.getRawData()[(wffmtIndex->index + 22)]), 2);
 
-			FMOD_SOUND_PCMREAD_CALLBACK * pcmreadcallback = new FMOD_SOUND_PCMREAD_CALLBACK(pcmreadcallback);
+			//FMOD_SOUND_PCMREAD_CALLBACK * pcmreadcallback = new FMOD_SOUND_PCMREAD_CALLBACK(pcmreadcallback);
 
 			soundInfo.cbsize = sizeof(soundInfo);
 			soundInfo.length = wfdataindex->size;
 			soundInfo.numchannels = channlCount;
 			soundInfo.defaultfrequency = sampleRate; // I hope it means bitrate
-			soundInfo.pcmreadcallback = ;
+			//soundInfo.pcmreadcallback = ;
 
 			if (audioFormat == 1) // PCM format
 			{
