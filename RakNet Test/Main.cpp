@@ -4,16 +4,27 @@
 #include <thread>
 #include <mutex>
 #include <exception>
+#include <cstring>
 
+// RakNet
 #include <MessageIdentifiers.h>
 #include <RakPeerInterface.h>
 #include <RakNetTypes.h>
 #include <NatPunchthroughClient.h>
 
-#include "Client.h"
-#include "Server.h"
+// fmod
+#include <fmod.h>
+#include <fmod.hpp>
+#include <fmod_errors.h>
+#include <fmod_common.h>
 
 #include "ExceptionC.h"
+
+#include "Client.h"
+#include "Server.h"
+#include "WavFile.h"
+
+
 
 #define SERVER_PORT 25505
 #define CLIENT_PORT 25506
@@ -440,6 +451,15 @@
 //}
 
 
+FMOD_RESULT PCMREADCALLBACK(FMOD_SOUND * soundraw, void * data, unsigned int datalen)
+{
+	short *stereo16bitbuffer = (short *)data;
+
+	// Populate the 'stereo16bitbuffer' with sound data 
+
+	return FMOD_OK;
+}
+
 
 int main()
 {
@@ -479,7 +499,6 @@ int main()
 					interfaceMutex.unlock();
 					threadSetup = true;
 					THROWC(strcat("thread returned error code ", (char*)(*returnVal)));
-					//printf("Error! (thread returned error code %i)\n", (*returnVal));
 				}
 				interfaceMutex.unlock();
 			}
@@ -510,6 +529,177 @@ int main()
 		}
 		else // server
 		{
+
+			printf("loading wav File\n");
+
+			WavFile wf;
+			int result = wf.loadSoundFile("../sounds/piano2.wav");
+
+			switch (result)
+			{
+			case WavFile::WFEC_NO_ERROR:
+				printf("wav file loaded properly\n");
+				break;
+			case WavFile::WFEC_FILE_DOES_NOT_EXIST:
+				printf("wav file does not exist\n");
+				break;
+			case WavFile::WFEC_FILE_FAILED_TO_OPEN:
+				printf("wav file failed to open\n");
+				break;
+			case WavFile::WFEC_FILE_NOT_WAV_TYPE:
+				printf("file is not a wav file\n");
+				break;
+			case WavFile::WFEC_FILE_OVERRUN:
+				printf("wav file overran\n");
+				break;
+			default:
+				printf("wav file failed");
+				break;
+			}
+
+			FMOD_RESULT fResult;
+			FMOD::System * fSystem;
+			FMOD_CREATESOUNDEXINFO soundInfo;
+			FMOD::Sound * fSound;
+			FMOD::Channel * fChannel;
+
+			std::vector<WavFile::subChunk> wfsc = wf.getDataSubchunkIndexList();
+
+			WavFile::subChunk * wffmtIndex = nullptr;
+			WavFile::subChunk * wfdataindex = nullptr;
+
+			for (size_t i = 0; i < wfsc.size(); i++)
+			{
+				char idc[5];
+				strcpy(idc, wfsc[i].ID);
+				idc[4] = '\0';
+				std::string id(idc);
+				std::string fmt("fmt ");
+				std::string data("data");
+				if (id == std::string("fmt "))
+				{
+					if (wffmtIndex != nullptr)
+					{
+						delete wffmtIndex;
+					}
+					wffmtIndex = new WavFile::subChunk;
+					(*wffmtIndex) = wfsc[i];
+				}
+				if (id == std::string("data"))
+				{
+					if (wfdataindex != nullptr)
+					{
+						delete wfdataindex;
+					}
+					wfdataindex = new WavFile::subChunk;
+					(*wfdataindex) = wfsc[i];
+				}
+			}
+
+			unsigned __int16 audioFormat;
+			memcpy(&audioFormat, &(wf.getRawData()[(wffmtIndex->index + 8)]), 2);
+
+			unsigned __int16 channlCount;
+			memcpy(&channlCount, &(wf.getRawData()[(wffmtIndex->index + 10)]), 2);
+
+			unsigned __int32 sampleRate;
+			memcpy(&sampleRate, &(wf.getRawData()[(wffmtIndex->index + 12)]), 4);
+
+			unsigned __int16 bitsPerSample;
+			memcpy(&bitsPerSample, &(wf.getRawData()[(wffmtIndex->index + 22)]), 2);
+
+			FMOD_SOUND_PCMREAD_CALLBACK * pcmreadcallback = new FMOD_SOUND_PCMREAD_CALLBACK(pcmreadcallback);
+
+			soundInfo.cbsize = sizeof(soundInfo);
+			soundInfo.length = wfdataindex->size;
+			soundInfo.numchannels = channlCount;
+			soundInfo.defaultfrequency = sampleRate; // I hope it means bitrate
+			soundInfo.pcmreadcallback = ;
+
+			if (audioFormat == 1) // PCM format
+			{
+				switch (bitsPerSample)
+				{
+				case 8:
+					soundInfo.format = FMOD_SOUND_FORMAT_PCM8;
+					break;
+				case 16:
+					soundInfo.format = FMOD_SOUND_FORMAT_PCM16;
+					break;
+				case 24:
+					soundInfo.format = FMOD_SOUND_FORMAT_PCM24;
+					break;
+				case 32:
+					soundInfo.format = FMOD_SOUND_FORMAT_PCM32;
+					break;
+				default:
+					THROWC("unknown wav bitsPerSample");
+					break;
+				}
+			}
+			else
+			{
+				THROWC("unknow wav file format");
+			}
+
+
+			
+
+			
+
+			// create system
+			fResult = FMOD::System_Create(&fSystem);
+			if (fResult != FMOD_OK)
+			{
+				std::string f;
+				f += fResult;
+				f += " - ";
+				f += FMOD_ErrorString(fResult);
+				char * c = new char[f.size()];
+				strcpy(c, f.c_str());
+				THROWC(c);
+			}
+
+			fResult = fSystem->init(512, FMOD_INIT_NORMAL, 0);
+			if (fResult != FMOD_OK)
+			{
+				std::string f;
+				f += fResult;
+				f += " - ";
+				f += FMOD_ErrorString(fResult);
+				char * c = new char[f.size()];
+				strcpy(c, f.c_str());
+				THROWC(c);
+			}
+
+			// create sound
+			fResult = fSystem->createSound(wf.getSoundData(), FMOD_OPENRAW, &soundInfo, &fSound);
+			if (fResult != FMOD_OK)
+			{
+				std::string f;
+				f += toascii(fResult);
+				f += " - ";
+				f += FMOD_ErrorString(fResult);
+				char * c = new char[f.size()];
+				strcpy(c, f.c_str());
+				THROWC(c);
+			}
+
+			// play sound
+			fResult = fSystem->playSound(fSound, 0, false, &fChannel);
+			if (fResult != FMOD_OK)
+			{
+				std::string f;
+				f += fResult;
+				f += " - ";
+				f += FMOD_ErrorString(fResult);
+				char * c = new char[f.size()];
+				strcpy(c, f.c_str());
+				THROWC(c);
+			}
+
+
+
 			int * returnVal = new int(0);
 			//int * returnVal;
 			Server * interfaceClass = nullptr;
