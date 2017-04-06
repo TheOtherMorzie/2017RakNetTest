@@ -20,3 +20,13 @@ void TBufferFiller::setFillBuffer(std::mutex * bufferMutex, SP::WavBuffer * buff
 	m_buffer = buffer;
 	m_setBufferMutex.unlock();
 }
+
+SP::WavBuffer * TBufferFiller::getBuffer()
+{
+	return m_buffer;
+}
+
+std::mutex * TBufferFiller::getBufferMutex()
+{
+	return m_bufferMutex;
+}

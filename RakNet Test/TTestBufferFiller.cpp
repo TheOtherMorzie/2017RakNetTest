@@ -19,6 +19,53 @@ void TTestBufferFiller::thread(int * errorCode, TTestBufferFiller ** interfaceCl
 	TTestBufferFiller * ic = (*interfaceClass);
 	ic->setActive(true);
 
+	// do the things
+	SP::WavBuffer * tb = nullptr;
+	SP::WavBuffer ** buffer = nullptr;
+	std::mutex * tbm = nullptr;
+	std::mutex ** bufferMutex = nullptr;
+	WavFile * file = nullptr;
+	WavFile::subChunk * dataSC = nullptr;
+	do
+	{
+		// reset
+		tb = nullptr;
+		buffer = nullptr;
+		tbm = nullptr;
+		bufferMutex = nullptr;
+		file = nullptr;
+		dataSC = nullptr;
+		// collect
+		interfaceMutex->lock();
+		tb = ic->getBuffer();
+		buffer = &(tb);
+		tbm = ic->getBufferMutex();
+		bufferMutex = &(tbm);
+		file = ic->getFile();
+		dataSC = ic->getDataSubChunk();
+		interfaceMutex->unlock();
+	} while ((tb == nullptr) && (buffer == nullptr) && (tbm == nullptr) && (bufferMutex == nullptr) && (file == nullptr) && (dataSC == nullptr));
+
+	bool run = true;
+	while (run)
+	{
+		if ((*buffer) != nullptr) // there is a buffer
+		{
+			interfaceMutex->lock();
+			if ((*buffer)->isFilled() == false) // not filled
+			{
+				// start filling
+				(*bufferMutex)->lock();
+				SP::WavBuffer * b = (*buffer);
+				int fillAmount = b->m_dataLength - b->m_FillIndex;
+				memcpy(&b->m_data[b->m_FillIndex], &file->getRawData()[dataSC->index + 4], fillAmount);
+				b->m_FillIndex += fillAmount;
+				(*bufferMutex)->unlock();
+			}
+			interfaceMutex->unlock();
+		}
+	}
+
 	ic->setActive(false);
 }
 
@@ -52,10 +99,12 @@ void TTestBufferFiller::addFile(WavFile * file)
 			m_sampleSize /= 8; // convert bits to bytes
 			//m_file->getRawData()[sc->index + 10]; // channel count (NumChannels)
 			//m_file->getRawData()[sc->index + 22]; // sample size (BitsPerSample) in bits
+			m_fmtSubChunk = sc;
 		}
 		if (id == std::string("data"))
 		{
 			m_totalSize = sc->size;
+			m_dataSubChunk = sc;
 		}
 	}
 }
@@ -67,16 +116,30 @@ int TTestBufferFiller::getBufferSize()
 
 int TTestBufferFiller::getTotalSize()
 {
-	EVALUATEC(m_file != nullptr);
 	return m_totalSize;
 }
 
 __int16 TTestBufferFiller::getSampleSize()
 {
-	return 0;
+	return m_sampleSize;
 }
 
 __int16 TTestBufferFiller::getChannelCount()
 {
-	return 0;
+	return m_channelCount;
+}
+
+WavFile * TTestBufferFiller::getFile()
+{
+	return m_file;
+}
+
+WavFile::subChunk * TTestBufferFiller::getFmtSubChunk()
+{
+	return m_fmtSubChunk;
+}
+
+WavFile::subChunk * TTestBufferFiller::getDataSubChunk()
+{
+	return m_dataSubChunk;
 }

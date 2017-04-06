@@ -28,7 +28,7 @@ public:
 	{
 		unsigned int index; // points to the ID
 		char ID[4];
-		unsigned __int32 size; // size of subchunk's data (does not include ID or SIZE)
+		unsigned __int32 size; // size of subchunk's data (does not include ID or SIZE) (+4 to get to actual data)
 	};
 
 	// actual class

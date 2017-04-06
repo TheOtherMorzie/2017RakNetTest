@@ -120,6 +120,26 @@ Client::~Client()
 {
 }
 
+int Client::getBufferSize()
+{
+	return 0;
+}
+
+int Client::getTotalSize()
+{
+	return 0;
+}
+
+__int16 Client::getSampleSize()
+{
+	return 0;
+}
+
+__int16 Client::getChannelCount()
+{
+	return 0;
+}
+
 void Client::connect(std::string ip, int port)
 {
 }

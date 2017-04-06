@@ -23,6 +23,9 @@ public:
 
 protected:
 
+	SP::WavBuffer * getBuffer();
+	std::mutex * getBufferMutex();
+
 	std::mutex m_setBufferMutex;
 
 	// buffer stuff
