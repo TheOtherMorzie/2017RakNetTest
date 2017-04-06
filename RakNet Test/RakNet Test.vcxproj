@@ -163,20 +163,33 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Client.cpp" />
+    <ClCompile Include="fmodExamples\asyncio.cpp" />
+    <ClCompile Include="fmodExamples\common.cpp" />
+    <ClCompile Include="fmodExamples\common_platform.cpp" />
+    <ClCompile Include="fmodExamples\user_created_sound.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="RakNetHelperFunctions.cpp" />
     <ClCompile Include="Server.cpp" />
     <ClCompile Include="SoundPlayer.cpp" />
+    <ClCompile Include="TBufferFiller.cpp" />
     <ClCompile Include="ThreadBase.cpp" />
+    <ClCompile Include="TTestBufferFiller.cpp" />
     <ClCompile Include="WavFile.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Client.h" />
+    <ClInclude Include="CommonTypes.h" />
     <ClInclude Include="ExceptionC.h" />
+    <ClInclude Include="fmodExamples\asyncio.h" />
+    <ClInclude Include="fmodExamples\common.h" />
+    <ClInclude Include="fmodExamples\common_platform.h" />
+    <ClInclude Include="fmodExamples\user_created_sound.h" />
     <ClInclude Include="RakNetHelperFunctions.h" />
     <ClInclude Include="Server.h" />
     <ClInclude Include="SoundPlayer.h" />
+    <ClInclude Include="TBufferFiller.h" />
     <ClInclude Include="ThreadBase.h" />
+    <ClInclude Include="TTestBufferFiller.h" />
     <ClInclude Include="WavFile.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

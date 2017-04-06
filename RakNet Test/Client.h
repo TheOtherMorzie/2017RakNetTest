@@ -1,5 +1,5 @@
 #pragma once
-#include "ThreadBase.h"
+#include "TBufferFiller.h"
 
 #include <mutex>
 #include <string>
@@ -9,13 +9,18 @@
 
 
 
-class Client : ThreadBase
+class Client : public TBufferFiller
 {
 public:
 	static void thread(int * errorCode, Client ** interfaceClass, std::mutex * interfaceMutex);
 
 	Client();
-	~Client();
+	virtual ~Client();
+
+	virtual int getBufferSize();
+	virtual int getTotalSize();
+	virtual __int16 getSampleSize();
+	virtual __int16 getChannelCount();
 
 	void connect(std::string ip, int port);
 

@@ -5,11 +5,13 @@ public:
 	ThreadBase();
 	virtual ~ThreadBase();
 
-	virtual bool isActive();
+	bool isActive();
 
 protected:
 
-	bool m_isActive;
+	void setActive(bool state);
+
+	bool m_isActive = false;
 
 };
 

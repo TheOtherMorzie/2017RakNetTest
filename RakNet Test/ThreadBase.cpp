@@ -4,7 +4,7 @@
 
 ThreadBase::ThreadBase()
 {
-	m_isActive = true;
+
 }
 
 
@@ -16,4 +16,9 @@ ThreadBase::~ThreadBase()
 bool ThreadBase::isActive()
 {
 	return m_isActive;
+}
+
+void ThreadBase::setActive(bool state)
+{
+	m_isActive = state;
 }

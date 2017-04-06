@@ -15,8 +15,9 @@
 // fmod
 #include <fmod.h>
 #include <fmod.hpp>
-#include <fmod_errors.h>
 #include <fmod_common.h>
+#include <fmod_errors.h>
+#include "fmodExamples\user_created_sound.h"
 
 #include "ExceptionC.h"
 
@@ -465,6 +466,11 @@ int main()
 {
 	try
 	{
+
+		FMODExamples::FMOD_MainUCS();
+
+		system("pause");
+
 		std::vector<char*> ipList = { "localhost","10.10.22.20", "122.99.85.34" };
 
 

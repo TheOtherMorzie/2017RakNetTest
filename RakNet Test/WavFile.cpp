@@ -122,7 +122,7 @@ int WavFile::getDataSubchunkCount()
 	return m_dataSubchunkCount;
 }
 
-const std::vector<WavFile::subChunk>& WavFile::getDataSubchunkIndexList()
+std::vector<WavFile::subChunk>& WavFile::getDataSubchunkIndexList()
 {
 	return m_dataSubcheunkIndexList;
 }

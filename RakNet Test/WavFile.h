@@ -43,7 +43,7 @@ public:
 	char * getRawData();
 
 	int getDataSubchunkCount();
-	const std::vector<WavFile::subChunk> & getDataSubchunkIndexList();
+	std::vector<WavFile::subChunk> & getDataSubchunkIndexList();
 
 	bool hasData();
 
@@ -57,7 +57,7 @@ protected:
 	int m_fileState = WavFile::FileStates::WFFS_NO_FILE_LOADED;
 
 	// all data
-	char * m_data = nullptr; // managed memory
+	char * m_data = nullptr; // owns this
 	int m_dataLength = 0;
 
 	int m_dataSubchunkCount = 0;

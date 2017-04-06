@@ -13,6 +13,18 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Examples">
+      <UniqueIdentifier>{687bd4fe-4636-43c0-aecf-ea45f5412501}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Examples\Source Files">
+      <UniqueIdentifier>{26b7a044-e967-4cb2-a56c-220c0d6fec3f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Examples\Header Files">
+      <UniqueIdentifier>{888c7f36-84b3-4de2-9076-df9d1c53dec3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Examples\Dependancies">
+      <UniqueIdentifier>{3d59a47e-ded2-4608-979c-44a539a76bac}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -34,6 +46,24 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SoundPlayer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="fmodExamples\user_created_sound.cpp">
+      <Filter>Examples\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="fmodExamples\asyncio.cpp">
+      <Filter>Examples\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="fmodExamples\common.cpp">
+      <Filter>Examples\Dependancies</Filter>
+    </ClCompile>
+    <ClCompile Include="fmodExamples\common_platform.cpp">
+      <Filter>Examples\Dependancies</Filter>
+    </ClCompile>
+    <ClCompile Include="TBufferFiller.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TTestBufferFiller.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -58,6 +88,27 @@
     </ClInclude>
     <ClInclude Include="SoundPlayer.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="fmodExamples\asyncio.h">
+      <Filter>Examples\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="fmodExamples\user_created_sound.h">
+      <Filter>Examples\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="fmodExamples\common.h">
+      <Filter>Examples\Dependancies</Filter>
+    </ClInclude>
+    <ClInclude Include="fmodExamples\common_platform.h">
+      <Filter>Examples\Dependancies</Filter>
+    </ClInclude>
+    <ClInclude Include="TBufferFiller.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TTestBufferFiller.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CommonTypes.h">
+      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

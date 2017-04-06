@@ -22,14 +22,17 @@ void Client::thread(int * errorCode, Client ** interfaceClass, std::mutex * inte
 {
 	if (interfaceMutex == nullptr)
 	{
-		THROWC("interfaceMutex was nullptr");
 		(*errorCode) = 1;
+		THROWC("interfaceMutex was nullptr");
 		return;
 	}
 
 	// start setting up client
 	interfaceMutex->lock();
 	(*interfaceClass) = new Client();
+	Client * ic = (*interfaceClass);
+	ic->setActive(true);
+
 
 	std::vector<char*> ipList = { "localhost","10.10.22.20", "122.99.85.34" };
 
@@ -93,7 +96,7 @@ void Client::thread(int * errorCode, Client ** interfaceClass, std::mutex * inte
 		std::cout << "packet was nullptr\n";
 	}
 
-	(*interfaceClass)->addConnection(peer);
+	ic->addConnection(peer);
 
 	// finished setting up client
 	interfaceMutex->unlock();
@@ -101,10 +104,11 @@ void Client::thread(int * errorCode, Client ** interfaceClass, std::mutex * inte
 	bool closeThread = false;
 	while (closeThread == false)
 	{
-		closeThread = (*interfaceClass)->tick();
+		closeThread = ic->tick();
 	}
 
 	peer->Shutdown(10);
+	ic->setActive(false);
 }
 
 Client::Client()
