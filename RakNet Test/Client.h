@@ -17,10 +17,12 @@ public:
 	Client();
 	virtual ~Client();
 
-	virtual int getBufferSize();
-	virtual int getTotalSize();
-	virtual __int16 getSampleSize();
-	virtual __int16 getChannelCount();
+	virtual int getBufferSize();		// ############## to be implemented
+	virtual int getTotalSize();			// ############## to be implemented
+	virtual int getSampleSize();		// ############## to be implemented
+	virtual int getChannelCount();		// ############## to be implemented
+	virtual int getPlayBackRate();		// ############## to be implemented
+	virtual int getFormat();			// ############## to be implemented
 
 	void connect(std::string ip, int port);
 

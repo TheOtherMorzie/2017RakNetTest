@@ -171,6 +171,7 @@
     <ClCompile Include="RakNetHelperFunctions.cpp" />
     <ClCompile Include="Server.cpp" />
     <ClCompile Include="SoundPlayer.cpp" />
+    <ClCompile Include="SoundPlayerHandler.cpp" />
     <ClCompile Include="TBufferFiller.cpp" />
     <ClCompile Include="ThreadBase.cpp" />
     <ClCompile Include="TTestBufferFiller.cpp" />
@@ -187,6 +188,7 @@
     <ClInclude Include="RakNetHelperFunctions.h" />
     <ClInclude Include="Server.h" />
     <ClInclude Include="SoundPlayer.h" />
+    <ClInclude Include="SoundPlayerHandler.h" />
     <ClInclude Include="TBufferFiller.h" />
     <ClInclude Include="ThreadBase.h" />
     <ClInclude Include="TTestBufferFiller.h" />

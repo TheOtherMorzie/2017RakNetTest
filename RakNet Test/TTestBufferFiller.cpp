@@ -15,12 +15,11 @@ void TTestBufferFiller::thread(int * errorCode, TTestBufferFiller ** interfaceCl
 
 	// start setting up client
 	interfaceMutex->lock();
-	(*interfaceClass) = new TTestBufferFiller();
 	TTestBufferFiller * ic = (*interfaceClass);
 	ic->setActive(true);
+	interfaceMutex->unlock();
 
 	// do the things
-	SP::WavBuffer * tb = nullptr;
 	SP::WavBuffer ** buffer = nullptr;
 	std::mutex * tbm = nullptr;
 	std::mutex ** bufferMutex = nullptr;
@@ -29,7 +28,6 @@ void TTestBufferFiller::thread(int * errorCode, TTestBufferFiller ** interfaceCl
 	do
 	{
 		// reset
-		tb = nullptr;
 		buffer = nullptr;
 		tbm = nullptr;
 		bufferMutex = nullptr;
@@ -37,14 +35,13 @@ void TTestBufferFiller::thread(int * errorCode, TTestBufferFiller ** interfaceCl
 		dataSC = nullptr;
 		// collect
 		interfaceMutex->lock();
-		tb = ic->getBuffer();
-		buffer = &(tb);
+		buffer = ic->getBuffer();
 		tbm = ic->getBufferMutex();
 		bufferMutex = &(tbm);
 		file = ic->getFile();
 		dataSC = ic->getDataSubChunk();
 		interfaceMutex->unlock();
-	} while ((tb == nullptr) && (buffer == nullptr) && (tbm == nullptr) && (bufferMutex == nullptr) && (file == nullptr) && (dataSC == nullptr));
+	} while ((buffer == nullptr) || (tbm == nullptr) || (bufferMutex == nullptr) || (file == nullptr) || (dataSC == nullptr));
 
 	bool run = true;
 	while (run)
@@ -80,21 +77,25 @@ TTestBufferFiller::~TTestBufferFiller()
 
 void TTestBufferFiller::addFile(WavFile * file)
 {
+	EVALUATEC(file != nullptr);
 	m_file = file;
 
 	for (size_t i = 0; i < m_file->getDataSubchunkIndexList().size(); i++)
 	{
 		WavFile::subChunk * sc = &m_file->getDataSubchunkIndexList()[i];
 		char idc[5];
-		strcpy(idc, m_file->getDataSubchunkIndexList()[i].ID);
+		memcpy(idc, m_file->getDataSubchunkIndexList()[i].ID, 4);
 		idc[4] = '\0';
 		std::string id(idc);
 		std::string fmt("fmt ");
 		std::string data("data");
 		if (id == std::string("fmt "))
 		{
-			memcpy(&m_channelCount, &m_file->getRawData()[sc->index + 10], 2);// channel count (NumChannels)
-			memcpy(&m_sampleSize, &m_file->getRawData()[sc->index + 22], 2);// sample size (BitsPerSample) in bits
+			memcpy(&m_format, &m_file->getRawData()[sc->index + 8], 2);			// audio format (AudioFormat)
+			memcpy(&m_channelCount, &m_file->getRawData()[sc->index + 10], 2);	// channel count (NumChannels)
+			memcpy(&m_playBackRate, &m_file->getRawData()[sc->index + 12], 2);	// sample rate (SampleRate) in samples per second
+			memcpy(&m_sampleSize, &m_file->getRawData()[sc->index + 22], 2);	// sample size (BitsPerSample) in bits
+
 			EVALUATEC((m_sampleSize % 8) == 0); // make sure that m_sampe size is a multiple of 8
 			m_sampleSize /= 8; // convert bits to bytes
 			//m_file->getRawData()[sc->index + 10]; // channel count (NumChannels)
@@ -119,14 +120,24 @@ int TTestBufferFiller::getTotalSize()
 	return m_totalSize;
 }
 
-__int16 TTestBufferFiller::getSampleSize()
+int TTestBufferFiller::getSampleSize()
 {
 	return m_sampleSize;
 }
 
-__int16 TTestBufferFiller::getChannelCount()
+int TTestBufferFiller::getChannelCount()
 {
 	return m_channelCount;
+}
+
+int TTestBufferFiller::getPlayBackRate()
+{
+	return m_playBackRate;
+}
+
+int TTestBufferFiller::getFormat()
+{
+	return m_format;
 }
 
 WavFile * TTestBufferFiller::getFile()

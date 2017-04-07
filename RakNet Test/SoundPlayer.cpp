@@ -2,84 +2,124 @@
 
 
 #include <cstring> // for low level memory functions (ie. memcpy)
+#include <string>
 
 
 #include "ExceptionC.h"
 #include "TBufferFiller.h"
 
+// for retrieveing the SoundPlayer
+#include "SoundPlayerHandler.h"
 
-SoundPlayer::SoundPlayer()
+
+FMOD_RESULT F_CALLBACK pcmreadcallback(FMOD_SOUND* /*sound*/, void *data, unsigned int datalen)
 {
-}
+	static float  t1 = 0, t2 = 0;        // time
+	static float  v1 = 0, v2 = 0;        // velocity
+	signed short *stereo16bitbuffer = (signed short *)data;
 
-
-SoundPlayer::~SoundPlayer()
-{
-}
-
-int SoundPlayer::init(int bufferSizeByte)
-{
-	m_bufferSizeByte = bufferSizeByte;
-
-	m_currentBuffer = new SP::WavBuffer(m_bufferSizeByte);
-	m_otherBuffer = new SP::WavBuffer(m_bufferSizeByte);
-
-
-	return 0;
-}
-
-FMOD_RESULT F_CALLBACK SoundPlayer::pcmreadcallback(FMOD_SOUND * sound, void * data, unsigned int datalen)
-{
-	EVALUATEC(m_currentBuffer != nullptr);
-	EVALUATEC(m_otherBuffer != nullptr);
-
-	//FMOD::Sound *snd = (FMOD::Sound *)sound;
-
-	if (m_currentBuffer->m_isDone) // buffers have not been switched yet
+	for (unsigned int count = 0; count < (datalen >> 2); count++)     // >>2 = 16bit stereo (4 bytes per sample)
 	{
-		if (swapBuffer()) // buffers sucessfully switched, should continue
-		{
+		*stereo16bitbuffer++ = (signed short)(sin(t1) * 32767.0f);    // left channel
+		*stereo16bitbuffer++ = (signed short)(sin(t2) * 32767.0f);    // right channel
 
-		}
-		else // buffer failed to swap (other buffer is not filled)
+		t1 += 0.01f + v1;
+		t2 += 0.0142f + v2;
+		v1 += (float)(sin(t1) * 0.002f);
+		v2 += (float)(sin(t2) * 0.002f);
+	}
+
+	printf("pcmReadCallBack");
+	//system("pause");
+
+	return FMOD_OK;
+}
+
+FMOD_RESULT F_CALLBACK pcmsetposcallback(FMOD_SOUND* /*sound*/, int /*subsound*/, unsigned int /*position*/, FMOD_TIMEUNIT /*postype*/)
+{
+	/*
+	This is useful if the user calls Channel::setPosition and you want to seek your data accordingly.
+	*/
+	return FMOD_OK;
+}
+
+FMOD_RESULT F_CALLBACK pcmreadcallbackC(FMOD_SOUND * sound, void * data, unsigned int datalen)
+{
+	FMOD::Sound *snd = (FMOD::Sound *)sound;
+	SoundPlayer * sp = nullptr;
+	{
+		std::mutex * sphm = &SoundPlayerHandler::getHandlerMutex();
+		sphm->lock();
+		sp = SoundPlayerHandler::getHandler().getSoundPlayer(snd);
+		sphm->unlock();
+	}
+	if (sp == nullptr)
+	{
+		printf("failed to get soundPlayer!\n");
+		return FMOD_OK;
+	}
+	else
+	{
+		printf("got soundplayer!\n");
+	}
+
+	SP::WavBuffer * currentBuffer = sp->getCurrentBuffer();
+
+	EVALUATEC(currentBuffer != nullptr);
+
+
+	if (currentBuffer->m_isDone) // buffers have not been switched yet
+	{
+		if (!sp->swapBuffer()) // buffer failed to swap (other buffer is not filled)
 		{
-			m_bufferState |= SP::BSBF_WAITING_ON_OTHER_BUFFER;
+			sp->setBufferBit(SP::BSBF_WAITING_ON_OTHER_BUFFER, true);
 			// to stop it looping over the last loaded buffer
-			setPause(true);
-			while (swapBuffer() == false)
+			sp->setPause(true);
+			while (sp->swapBuffer() == false)
 			{
 				// give the program a chance to swap the buffers and to avoid locking up the cpu
+				printf("waiting on other buffer to be filled\n");
 				std::chrono::milliseconds timespan(100);
 				std::this_thread::sleep_for(timespan);
 			}
-			setPause(false);
+			sp->setBufferBit(SP::BSBF_WAITING_ON_OTHER_BUFFER, false);
+			sp->setPause(false);
 		}
 	}
 
 	// the current buffer should not be done
-	EVALUATEC(m_currentBuffer->m_isDone);
+	EVALUATEC(currentBuffer->m_isDone);
 
-	// load m_current buffer into data
+	// load currentBuffer into data
 
 
 	// this will loop though data allowing the audio buffer to be set
 	signed short *stereo16bitbuffer = (signed short *)data;
-	for (unsigned int count = 0; count < (datalen >> 2); count++)     // >>2 = 16bit stereo (4 bytes per sample)
+	std::mutex * bm = sp->getBufferMutex();
+	if (bm != nullptr)
 	{
-		//*stereo16bitbuffer++ = (signed short)(Common_Sin(t1) * 32767.0f);    // left channel
-		//*stereo16bitbuffer++ = (signed short)(Common_Sin(t2) * 32767.0f);    // right channel
-		memcpy(&(*stereo16bitbuffer++), &(m_currentBuffer->m_data[count * 2]), m_sampleSize); // left channel
-		memcpy(&(*stereo16bitbuffer++), &(m_currentBuffer->m_data[(count * 2) + 1]), m_sampleSize); // right channel
+		(*bm).lock();
+		//printf("loading sound");
+		for (unsigned int count = 0; count < (datalen >> 2); count++)     // >>2 = 16bit stereo (4 bytes per sample)
+		{
+			//*stereo16bitbuffer++ = (signed short)(Common_Sin(t1) * 32767.0f);    // left channel
+			//*stereo16bitbuffer++ = (signed short)(Common_Sin(t2) * 32767.0f);    // right channel
+			memcpy(&(*stereo16bitbuffer++), &(currentBuffer->m_data[count * 2]), sp->getSampleSize()); // left channel
+			memcpy(&(*stereo16bitbuffer++), &(currentBuffer->m_data[(count * 2) + 1]), sp->getSampleSize()); // right channel
 
-		m_sampleIndex++;
+			sp->getSampleIndex()++;
+		}
+		currentBuffer->m_isDone = true;
+		sp->swapBuffer(); // swap buffers so that the filler can fill otherBuffer
+		(*bm).unlock();
 	}
 
-
 	// old
+	/*
 	bool callBackDone = false;
 	while (!callBackDone)
 	{
-		if (!m_currentBuffer->m_isDone) // play sample from current buffer
+		if (!currentBuffer->m_isDone) // play sample from current buffer
 		{
 			// play sample
 
@@ -89,21 +129,20 @@ FMOD_RESULT F_CALLBACK SoundPlayer::pcmreadcallback(FMOD_SOUND * sound, void * d
 			{
 				//*stereo16bitbuffer++ = (signed short)(Common_Sin(t1) * 32767.0f);    // left channel
 				//*stereo16bitbuffer++ = (signed short)(Common_Sin(t2) * 32767.0f);    // right channel
-				memcpy(&(*stereo16bitbuffer++), &(m_currentBuffer->m_data[count * 2]), m_sampleSize); // left channel
-				memcpy(&(*stereo16bitbuffer++), &(m_currentBuffer->m_data[(count * 2) + 1]), m_sampleSize); // right channel
+				memcpy(&(*stereo16bitbuffer++), &(currentBuffer->m_data[count * 2]), sampleSize); // left channel
+				memcpy(&(*stereo16bitbuffer++), &(currentBuffer->m_data[(count * 2) + 1]), sampleSize); // right channel
 			}
 
 			//
-			m_sampleIndex++; // has played a sample and should move on
+			sampleIndex++; // has played a sample and should move on
 			callBackDone = true;
 		}
 		else // switch buffers
 		{
-			bool otherFilled = swapBuffer();
+			bool otherFilled = sp->swapBuffer();
 			if (!otherFilled) // still on same buffer
 			{
-				
-				m_bufferState |= SP::BSBF_WAITING_ON_OTHER_BUFFER;
+				sp->setBufferBit(SP::BSBF_WAITING_ON_OTHER_BUFFER, true);
 				callBackDone = true;
 			}
 			// won't exit while loop so that the new buffer can play it's sample
@@ -112,25 +151,26 @@ FMOD_RESULT F_CALLBACK SoundPlayer::pcmreadcallback(FMOD_SOUND * sound, void * d
 
 
 	// ############################# example code
-	//static float  t1 = 0, t2 = 0;        // time
-	//static float  v1 = 0, v2 = 0;        // velocity
-	//signed short *stereo16bitbuffer = (signed short *)data;
+	static float  t1 = 0, t2 = 0;        // time
+	static float  v1 = 0, v2 = 0;        // velocity
+	signed short *stereo16bitbuffer = (signed short *)data;
 
-	//for (unsigned int count = 0; count < (datalen >> 2); count++)     // >>2 = 16bit stereo (4 bytes per sample)
-	//{
-	//	*stereo16bitbuffer++ = (signed short)(Common_Sin(t1) * 32767.0f);    // left channel
-	//	*stereo16bitbuffer++ = (signed short)(Common_Sin(t2) * 32767.0f);    // right channel
+	for (unsigned int count = 0; count < (datalen >> 2); count++)     // >>2 = 16bit stereo (4 bytes per sample)
+	{
+		*stereo16bitbuffer++ = (signed short)(Common_Sin(t1) * 32767.0f);    // left channel
+		*stereo16bitbuffer++ = (signed short)(Common_Sin(t2) * 32767.0f);    // right channel
 
-	//	t1 += 0.01f + v1;
-	//	t2 += 0.0142f + v2;
-	//	v1 += (float)(Common_Sin(t1) * 0.002f);
-	//	v2 += (float)(Common_Sin(t2) * 0.002f);
-	//}
+		t1 += 0.01f + v1;
+		t2 += 0.0142f + v2;
+		v1 += (float)(Common_Sin(t1) * 0.002f);
+		v2 += (float)(Common_Sin(t2) * 0.002f);
+	}
+	*/
 
 	return FMOD_OK;
 }
 
-FMOD_RESULT F_CALLBACK SoundPlayer::pcmsetposcallback(FMOD_SOUND * sound, int subsound, unsigned int position, FMOD_TIMEUNIT postype)
+FMOD_RESULT F_CALLBACK pcmsetposcallbackC(FMOD_SOUND * sound, int subsound, unsigned int position, FMOD_TIMEUNIT postype)
 {
 	/*
 	This is useful if the user calls Channel::setPosition and you want to seek your data accordingly.
@@ -144,12 +184,183 @@ FMOD_RESULT F_CALLBACK SoundPlayer::pcmsetposcallback(FMOD_SOUND * sound, int su
 	return FMOD_OK;
 }
 
+
+SoundPlayer::SoundPlayer()
+{
+	m_bufferMutex = new std::mutex;
+}
+
+
+SoundPlayer::~SoundPlayer()
+{
+	FMOD_RESULT result;
+	/*
+	Shut down
+	*/
+	result = m_sound->release();
+	if (result != FMOD_OK)
+	{
+		printf("FMOD Error! (%d) %s\n", result, FMOD_ErrorString(result));
+	}
+	result = m_system->close();
+	if (result != FMOD_OK)
+	{
+		printf("FMOD Error! (%d) %s\n", result, FMOD_ErrorString(result));
+	}
+	result = m_system->release();
+	if (result != FMOD_OK)
+	{
+		printf("FMOD Error! (%d) %s\n", result, FMOD_ErrorString(result));
+	}
+	if (m_bufferMutex != nullptr)
+	{
+		delete m_bufferMutex;
+	}
+}
+
+int SoundPlayer::init(TBufferFiller & bufferFiller)
+{
+	m_bufferSizeByte = bufferFiller.getBufferSize();
+	m_numberOfChannels = bufferFiller.getChannelCount();
+	m_sampleSize = bufferFiller.getSampleSize();
+	m_playbackRate = bufferFiller.getPlayBackRate();
+	m_totalFileSize = bufferFiller.getTotalSize();
+
+	bufferFiller.setFillBuffer(m_bufferMutex, &m_otherBuffer);
+
+	m_currentBuffer = new SP::WavBuffer(m_bufferSizeByte);
+	m_otherBuffer = new SP::WavBuffer(m_bufferSizeByte);
+
+	// setup fmod objects
+
+	FMOD_RESULT             result;
+	FMOD_MODE               mode = FMOD_OPENUSER | FMOD_LOOP_NORMAL | FMOD_CREATESTREAM;
+	FMOD_CREATESOUNDEXINFO  exinfo;
+	unsigned int            version;
+	void                   *extradriverdata = 0;
+
+	//Common_Init(&extradriverdata);
+
+	/*
+	Create a System object and initialize.
+	*/
+	result = FMOD::System_Create(&m_system);
+	if (result != FMOD_OK)
+	{
+		printf("FMOD Error! (%d) %s\n", result, FMOD_ErrorString(result));
+		return result;
+	}
+
+	result = m_system->getVersion(&version);
+	if (result != FMOD_OK)
+	{
+		printf("FMOD Error! (%d) %s\n", result, FMOD_ErrorString(result));
+		return result;
+	}
+
+	if (version < FMOD_VERSION)
+	{
+		printf("FMOD lib version %d doesn't match header version %d", version, FMOD_VERSION);
+	}
+
+	result = m_system->init(512, FMOD_INIT_NORMAL, extradriverdata);
+	if (result != FMOD_OK)
+	{
+		printf("FMOD Error! (%d) %s\n", result, FMOD_ErrorString(result));
+		return result;
+	}
+
+	// set stream info
+	if (true)
+	{
+		memset(&exinfo, 0, sizeof(FMOD_CREATESOUNDEXINFO));
+		exinfo.cbsize = sizeof(FMOD_CREATESOUNDEXINFO);					/* Required. */
+		exinfo.numchannels = m_numberOfChannels;						/* Number of channels in the sound. */
+		exinfo.defaultfrequency = m_playbackRate;						/* Default playback rate of sound. */
+		exinfo.decodebuffersize = m_bufferSizeByte;						/* Chunk size of stream update in samples. This will be the amount of data passed to the user callback. */
+																		//exinfo.decodebuffersize = 2048; /* 44100 / 5 = 8820 */		/* Chunk size of stream update in samples. This will be the amount of data passed to the user callback. */
+		exinfo.length = m_totalFileSize;								/* Length of PCM data in bytes of whole song (for Sound::getLength) */
+		FMOD_SOUND_FORMAT f;
+		if (bufferFiller.getFormat() == 1)
+		{
+			switch (bufferFiller.getSampleSize())
+			{
+			case 1:
+				f = FMOD_SOUND_FORMAT_PCM8;
+				break;
+			case 2:
+				f = FMOD_SOUND_FORMAT_PCM16;
+				break;
+			case 3:
+				f = FMOD_SOUND_FORMAT_PCM24;
+				break;
+			case 4:
+				f = FMOD_SOUND_FORMAT_PCM32;
+				break;
+			default:
+				std::string s("unknown sample size: ");
+				s += std::to_string(bufferFiller.getSampleSize());
+				char * c = new char[s.size()];
+				strcpy(c, s.c_str());
+				THROWC(c);
+				break;
+			}
+		}
+		else
+		{
+			std::string s("unknown file format: ");
+			s += std::to_string(bufferFiller.getFormat());
+			char * c = new char[s.size()];
+			strcpy(c, s.c_str());
+			THROWC(c);
+		}
+		exinfo.format = f;												/* Data format of sound. */
+		exinfo.pcmreadcallback = pcmreadcallbackC;		/* User callback for reading. */
+		exinfo.pcmsetposcallback = pcmsetposcallbackC;	/* User callback for seeking. */
+	}
+
+	// for debugging
+	if (false)
+	{
+		memset(&exinfo, 0, sizeof(FMOD_CREATESOUNDEXINFO));
+		exinfo.cbsize = sizeof(FMOD_CREATESOUNDEXINFO);												/* Required. */
+		exinfo.numchannels = 2;																		/* Number of channels in the sound. */
+		exinfo.defaultfrequency = 44100;															/* Default playback rate of sound. */
+		exinfo.decodebuffersize = 44100;															/* Chunk size of stream update in samples. This will be the amount of data passed to the user callback. */
+		exinfo.length = exinfo.defaultfrequency * exinfo.numchannels * sizeof(signed short) * 5;	/* Length of PCM data in bytes of whole song (for Sound::getLength) */
+		exinfo.format = FMOD_SOUND_FORMAT_PCM16;													/* Data format of sound. */
+		exinfo.pcmreadcallback = pcmreadcallbackC;													/* User callback for reading. */
+		exinfo.pcmsetposcallback = pcmsetposcallbackC;												/* User callback for seeking. */
+	}
+
+	result = m_system->createSound(0, mode, &exinfo, &m_sound);
+	if (result != FMOD_OK)
+	{
+		printf("FMOD Error! (%d) %s\n", result, FMOD_ErrorString(result));
+		return result;
+	}
+
+	result = m_system->playSound(m_sound, 0, 0, &m_channel);
+	if (result != FMOD_OK)
+	{
+		printf("FMOD Error! (%d) %s\n", result, FMOD_ErrorString(result));
+		return result;
+	}
+
+	std::mutex * sphm = &SoundPlayerHandler::getHandlerMutex();
+	sphm->lock();
+	SoundPlayerHandler::getHandler().addSoundSoundPlayerPair(m_sound, this);
+	sphm->unlock();
+
+	return 0;
+}
+
 bool SoundPlayer::swapBuffer()
 {
 	EVALUATEC(m_currentBuffer != nullptr);
 	EVALUATEC(m_otherBuffer != nullptr);
 
-	if (m_bufferMutex.try_lock())
+	if (m_bufferMutex->try_lock())
 	{
 		if (m_otherBuffer->isFilled())
 		{
@@ -159,8 +370,6 @@ bool SoundPlayer::swapBuffer()
 			// do swap code here ##############################
 			m_otherBuffer->m_FillIndex = 0; // set other buffer to being unfilled
 			m_otherBuffer->m_Index = m_currentBuffer->m_Index + m_currentBuffer->m_dataLength; // set start of buffer to end of other buffer
-			EVALUATEC(m_bufferFiller != nullptr);
-			m_bufferFiller->setFillBuffer(&m_bufferMutex, m_otherBuffer);
 			return true; // exit here
 		}
 	}
@@ -193,4 +402,41 @@ void SoundPlayer::togglePause()
 	m_channel->getPaused(&paused);
 	m_channel->setPaused(!paused);
 	m_channelMutex.unlock();
+}
+
+SP::WavBuffer * SoundPlayer::getCurrentBuffer()
+{
+	return m_currentBuffer;
+}
+
+SP::WavBuffer * SoundPlayer::getOtherBuffer()
+{
+	return m_otherBuffer;
+}
+
+void SoundPlayer::setBufferBit(int bit, bool state)
+{
+	if (state)
+	{
+		m_bufferState |= bit;
+	}
+	else
+	{
+		m_bufferState &= ~bit;
+	}
+}
+
+int SoundPlayer::getSampleSize()
+{
+	return m_sampleSize;
+}
+
+int & SoundPlayer::getSampleIndex()
+{
+	return m_sampleIndex;
+}
+
+std::mutex * SoundPlayer::getBufferMutex()
+{
+	return m_bufferMutex;
 }

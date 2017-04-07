@@ -4,6 +4,8 @@
 
 #include "WavFile.h"
 
+// reference http://soundfile.sapp.org/doc/WaveFormat/
+
 class TTestBufferFiller : public TBufferFiller
 {
 public:
@@ -17,8 +19,10 @@ public:
 
 	virtual int getBufferSize();
 	virtual int getTotalSize();
-	virtual __int16 getSampleSize();
-	virtual __int16 getChannelCount();
+	virtual int getSampleSize();
+	virtual int getChannelCount();
+	virtual int getPlayBackRate();
+	virtual int getFormat();
 
 protected:
 
@@ -34,6 +38,8 @@ protected:
 	int m_totalSize = 0;
 	__int16 m_sampleSize = 0;
 	__int16 m_channelCount = 0;
+	__int32 m_playBackRate = 0;
+	__int16 m_format = 0;
 
 
 };

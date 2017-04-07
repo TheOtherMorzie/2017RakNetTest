@@ -25,6 +25,9 @@
 #include "Server.h"
 #include "WavFile.h"
 
+#include "TTestBufferFiller.h"
+#include "SoundPlayer.h"
+
 
 
 #define SERVER_PORT 25505
@@ -452,24 +455,72 @@
 //}
 
 
-FMOD_RESULT PCMREADCALLBACK(FMOD_SOUND * soundraw, void * data, unsigned int datalen)
-{
-	short *stereo16bitbuffer = (short *)data;
-
-	// Populate the 'stereo16bitbuffer' with sound data 
-
-	return FMOD_OK;
-}
-
-
 int main()
 {
 	try
 	{
+		if (true){
+			WavFile wf;
+			int result = wf.loadSoundFile("../sounds/piano2.wav");
+
+			switch (result)
+			{
+			case WavFile::WFEC_NO_ERROR:
+				printf("wav file loaded properly\n");
+				break;
+			case WavFile::WFEC_FILE_DOES_NOT_EXIST:
+				printf("wav file does not exist\n");
+				break;
+			case WavFile::WFEC_FILE_FAILED_TO_OPEN:
+				printf("wav file failed to open\n");
+				break;
+			case WavFile::WFEC_FILE_NOT_WAV_TYPE:
+				printf("file is not a wav file\n");
+				break;
+			case WavFile::WFEC_FILE_OVERRUN:
+				printf("wav file overran\n");
+				break;
+			default:
+				printf("wav file failed");
+				break;
+			}
+
+			TTestBufferFiller * ttbf = new TTestBufferFiller();
+			ttbf->addFile(&wf);
+
+			SoundPlayer * sp = new SoundPlayer();
+			sp->init(*ttbf);
+
+			int ttbfError;
+			std::mutex ttbfMutex;
+			TTestBufferFiller ** ttbfp = &ttbf;
+			std::thread * ttbfThread = new std::thread(TTestBufferFiller::thread, &ttbfError, ttbfp, &ttbfMutex);
+
+			bool run = true;
+			while (ttbf->isActive())
+			{
+				// avoid locking up the thread
+				printf("waiting on other buffer to be filled\n");
+				std::chrono::milliseconds timespan(100);
+				std::this_thread::sleep_for(timespan);
+				ttbfMutex.lock();
+				run = ttbf->isActive();
+				ttbfMutex.unlock();
+			}
+
+			printf("bufferFillerDone!\n");
+
+			system("pause");
+
+		}
+
+		system("pause");
 
 		FMODExamples::FMOD_MainUCS();
 
 		system("pause");
+
+
 
 		std::vector<char*> ipList = { "localhost","10.10.22.20", "122.99.85.34" };
 
@@ -748,6 +799,12 @@ int main()
 	catch (const std::exception & e)
 	{
 		std::cout << "Standard exception: " << e.what() << "\n";
+		system("pause");
+		return 1;
+	}
+	catch (std::system_error & e)
+	{
+		std::cout << "System error (" << e.code().message() << ") " << e.what() << "\n";
 		system("pause");
 		return 1;
 	}

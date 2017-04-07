@@ -66,6 +66,9 @@
     <ClCompile Include="TTestBufferFiller.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SoundPlayerHandler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Server.h">
@@ -109,6 +112,9 @@
     </ClInclude>
     <ClInclude Include="CommonTypes.h">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SoundPlayerHandler.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

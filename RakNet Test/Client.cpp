@@ -130,12 +130,22 @@ int Client::getTotalSize()
 	return 0;
 }
 
-__int16 Client::getSampleSize()
+int Client::getSampleSize()
 {
 	return 0;
 }
 
-__int16 Client::getChannelCount()
+int Client::getChannelCount()
+{
+	return 0;
+}
+
+int Client::getPlayBackRate()
+{
+	return 0;
+}
+
+int Client::getFormat()
 {
 	return 0;
 }

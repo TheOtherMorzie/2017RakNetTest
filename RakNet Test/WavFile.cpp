@@ -97,6 +97,9 @@ int WavFile::loadSoundFile(const std::string & filePath)
 		m_fileState = WavFile::FileStates::WFFS_FILE_LOADED_INCORRECTLY;
 		return WavFile::ErrorCodes::WFEC_FILE_OVERRUN;
 	}
+	
+	// we're done here
+	file.close();
 
 	m_fileState = WavFile::FileStates::WFFS_READY;
 	return WFEC_NO_ERROR;
