@@ -120,6 +120,11 @@ char * WavFile::getRawData()
 	return m_data;
 }
 
+unsigned int WavFile::getRawDataLength()
+{
+	return m_dataLength;
+}
+
 int WavFile::getDataSubchunkCount()
 {
 	return m_dataSubchunkCount;

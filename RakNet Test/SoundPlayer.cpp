@@ -45,22 +45,25 @@ FMOD_RESULT F_CALLBACK pcmsetposcallback(FMOD_SOUND* /*sound*/, int /*subsound*/
 
 FMOD_RESULT F_CALLBACK pcmreadcallbackC(FMOD_SOUND * sound, void * data, unsigned int datalen)
 {
+	printf("######### pcmreadcallback");
 	FMOD::Sound *snd = (FMOD::Sound *)sound;
 	SoundPlayer * sp = nullptr;
 	{
 		std::mutex * sphm = &SoundPlayerHandler::getHandlerMutex();
 		sphm->lock();
+		printf("SoundPlayer[Callback](53): soundPlayerHandler locked!\n");
 		sp = SoundPlayerHandler::getHandler().getSoundPlayer(snd);
 		sphm->unlock();
+		printf("SoundPlayer[Callback](56): soundPlayerHandler unlocked!\n");
 	}
 	if (sp == nullptr)
 	{
-		printf("failed to get soundPlayer!\n");
+		printf("#########failed to get soundPlayer!\n");
 		return FMOD_OK;
 	}
 	else
 	{
-		printf("got soundplayer!\n");
+		printf("#########got soundplayer!\n");
 	}
 
 	SP::WavBuffer * currentBuffer = sp->getCurrentBuffer();
@@ -78,7 +81,7 @@ FMOD_RESULT F_CALLBACK pcmreadcallbackC(FMOD_SOUND * sound, void * data, unsigne
 			while (sp->swapBuffer() == false)
 			{
 				// give the program a chance to swap the buffers and to avoid locking up the cpu
-				printf("waiting on other buffer to be filled\n");
+				printf("######### Waiting on other buffer to be filled\n");
 				std::chrono::milliseconds timespan(100);
 				std::this_thread::sleep_for(timespan);
 			}
@@ -96,23 +99,51 @@ FMOD_RESULT F_CALLBACK pcmreadcallbackC(FMOD_SOUND * sound, void * data, unsigne
 	// this will loop though data allowing the audio buffer to be set
 	signed short *stereo16bitbuffer = (signed short *)data;
 	std::mutex * bm = sp->getBufferMutex();
-	if (bm != nullptr)
+	EVALUATEC(bm != nullptr);
+	bool done = false;
+	while (done == false)
 	{
-		(*bm).lock();
-		//printf("loading sound");
-		for (unsigned int count = 0; count < (datalen >> 2); count++)     // >>2 = 16bit stereo (4 bytes per sample)
+		if (bm->try_lock())
 		{
-			//*stereo16bitbuffer++ = (signed short)(Common_Sin(t1) * 32767.0f);    // left channel
-			//*stereo16bitbuffer++ = (signed short)(Common_Sin(t2) * 32767.0f);    // right channel
-			memcpy(&(*stereo16bitbuffer++), &(currentBuffer->m_data[count * 2]), sp->getSampleSize()); // left channel
-			memcpy(&(*stereo16bitbuffer++), &(currentBuffer->m_data[(count * 2) + 1]), sp->getSampleSize()); // right channel
+			printf("######### Filling FMOD buffer\n");
+			printf("SoundPlayer[Callback](107): buffer mutex locked!\n");
+			//printf("loading sound");
+			int sampleCount = datalen >> 1;
+			for (unsigned int count = 0; count < (datalen >> 1); count++)     // >>2 = 16bit stereo (4 bytes per sample)
+			{
+				//*stereo16bitbuffer++ = (signed short)(Common_Sin(t1) * 32767.0f);    // left channel
+				//*stereo16bitbuffer++ = (signed short)(Common_Sin(t2) * 32767.0f);    // right channel
+				char c1[2];
+				char c2[2];
+				memcpy(&c1, &(currentBuffer->m_data[count * 2]), sp->getSampleSize()); // left channel
+				memcpy(&c2, &(currentBuffer->m_data[(count * 2) + 1]), sp->getSampleSize()); // right channel
+				memcpy(&(*stereo16bitbuffer++), &(currentBuffer->m_data[count * 2]), sp->getSampleSize()); // left channel
+				memcpy(&(*stereo16bitbuffer++), &(currentBuffer->m_data[(count * 2) + 1]), sp->getSampleSize()); // right channel
 
-			sp->getSampleIndex()++;
+				//memset(&(*stereo16bitbuffer++), 0, sp->getSampleSize()); // set data to null
+				//memset(&(*stereo16bitbuffer++), 0, sp->getSampleSize()); // set data to null
+
+				sp->getSampleIndex()++;
+			}
+			currentBuffer->m_isDone = true;
+			sp->swapBuffer(); // swap buffers so that the filler can fill otherBuffer
+
+
+			(*bm).unlock();
+			printf("SoundPlayer[Callback](123): buffer mutex unlocked!\n");
+			done = true;
 		}
-		currentBuffer->m_isDone = true;
-		sp->swapBuffer(); // swap buffers so that the filler can fill otherBuffer
-		(*bm).unlock();
+		else
+		{
+			printf("######### Waiting on SoundPlayer Mutex...\n");
+			std::chrono::milliseconds timespan(100);
+			std::this_thread::sleep_for(timespan);
+		}
 	}
+
+	printf("######### Sound Player callback done\n");
+	sp->setPause(false);
+
 
 	// old
 	/*
@@ -234,6 +265,7 @@ int SoundPlayer::init(TBufferFiller & bufferFiller)
 	// setup fmod objects
 
 	FMOD_RESULT             result;
+	//FMOD_MODE               mode = FMOD_OPENUSER | FMOD_LOOP_NORMAL;
 	FMOD_MODE               mode = FMOD_OPENUSER | FMOD_LOOP_NORMAL | FMOD_CREATESTREAM;
 	FMOD_CREATESOUNDEXINFO  exinfo;
 	unsigned int            version;
@@ -340,7 +372,7 @@ int SoundPlayer::init(TBufferFiller & bufferFiller)
 		return result;
 	}
 
-	result = m_system->playSound(m_sound, 0, 0, &m_channel);
+	result = m_system->playSound(m_sound, 0, false, &m_channel);
 	if (result != FMOD_OK)
 	{
 		printf("FMOD Error! (%d) %s\n", result, FMOD_ErrorString(result));
@@ -349,8 +381,10 @@ int SoundPlayer::init(TBufferFiller & bufferFiller)
 
 	std::mutex * sphm = &SoundPlayerHandler::getHandlerMutex();
 	sphm->lock();
+	printf("SoundPlayer(369): soundPlayerHandler locked!\n");
 	SoundPlayerHandler::getHandler().addSoundSoundPlayerPair(m_sound, this);
 	sphm->unlock();
+	printf("SoundPlayer(369): soundPlayerHandler unlocked!\n");
 
 	return 0;
 }
@@ -362,16 +396,22 @@ bool SoundPlayer::swapBuffer()
 
 	if (m_bufferMutex->try_lock())
 	{
+		printf("SoundPlayer(384): buffer mutex locked!\n");
 		if (m_otherBuffer->isFilled())
 		{
+			printf("######### Swaping buffers");
 			SP::WavBuffer * temp = m_otherBuffer;
 			m_otherBuffer = m_currentBuffer;
 			m_currentBuffer = temp;
 			// do swap code here ##############################
 			m_otherBuffer->m_FillIndex = 0; // set other buffer to being unfilled
 			m_otherBuffer->m_Index = m_currentBuffer->m_Index + m_currentBuffer->m_dataLength; // set start of buffer to end of other buffer
+			m_bufferMutex->unlock();
+			printf("SoundPlayer(394): buffer mutex unlocked!\n");
 			return true; // exit here
 		}
+		m_bufferMutex->unlock();
+		printf("SoundPlayer(398): buffer mutex unlocked!\n");
 	}
 	return false; // exit here
 }
@@ -380,17 +420,21 @@ void SoundPlayer::setPause(bool state)
 {
 	EVALUATEC(m_channel != nullptr);
 	m_channelMutex.lock();
+	printf("SoundPlayer(407): channel locked!\n");
 	m_channel->setPaused(true);
 	m_channelMutex.unlock();
+	printf("SoundPlayer(410): channel unlocked!\n");
 }
 
 bool SoundPlayer::getPause()
 {
 	EVALUATEC(m_channel != nullptr);
 	m_channelMutex.lock();
+	printf("SoundPlayer(417): channel locked!\n");
 	bool paused;
 	m_channel->getPaused(&paused);
 	m_channelMutex.unlock();
+	printf("SoundPlayer(421): channel unlocked!\n");
 	return paused;
 }
 
@@ -398,10 +442,12 @@ void SoundPlayer::togglePause()
 {
 	EVALUATEC(m_channel != nullptr);
 	m_channelMutex.lock();
+	printf("SoundPlayer(429): channel locked!\n");
 	bool paused;
 	m_channel->getPaused(&paused);
 	m_channel->setPaused(!paused);
 	m_channelMutex.unlock();
+	printf("SoundPlayer(434): channel unlocked!\n");
 }
 
 SP::WavBuffer * SoundPlayer::getCurrentBuffer()
@@ -412,6 +458,21 @@ SP::WavBuffer * SoundPlayer::getCurrentBuffer()
 SP::WavBuffer * SoundPlayer::getOtherBuffer()
 {
 	return m_otherBuffer;
+}
+
+FMOD::Sound * SoundPlayer::getSound()
+{
+	return m_sound;
+}
+
+FMOD::Channel * SoundPlayer::getChannel()
+{
+	return m_channel;
+}
+
+FMOD::System * SoundPlayer::getSystem()
+{
+	return m_system;
 }
 
 void SoundPlayer::setBufferBit(int bit, bool state)

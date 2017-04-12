@@ -41,6 +41,7 @@ public:
 	__int32 getSoundDataSize();
 	char * getSoundData();
 	char * getRawData();
+	unsigned int getRawDataLength();
 
 	int getDataSubchunkCount();
 	std::vector<WavFile::subChunk> & getDataSubchunkIndexList();
@@ -58,7 +59,7 @@ protected:
 
 	// all data
 	char * m_data = nullptr; // owns this
-	int m_dataLength = 0;
+	unsigned int m_dataLength = 0;
 
 	int m_dataSubchunkCount = 0;
 	std::vector<WavFile::subChunk> m_dataSubcheunkIndexList;

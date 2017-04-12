@@ -112,8 +112,8 @@ namespace FMODExamples
 		exinfo.cbsize = sizeof(FMOD_CREATESOUNDEXINFO);												/* Required. */
 		exinfo.numchannels = 2;																		/* Number of channels in the sound. */
 		exinfo.defaultfrequency = 44100;															/* Default playback rate of sound. */
-		exinfo.decodebuffersize = 44100;															/* Chunk size of stream update in samples. This will be the amount of data passed to the user callback. */
-		//exinfo.decodebuffersize = 2048; /* 44100 / 5 = 8820 */									/* Chunk size of stream update in samples. This will be the amount of data passed to the user callback. */
+		//exinfo.decodebuffersize = 44100;															/* Chunk size of stream update in samples. This will be the amount of data passed to the user callback. */
+		exinfo.decodebuffersize = 2048; /* 44100 / 5 = 8820 */										/* Chunk size of stream update in samples. This will be the amount of data passed to the user callback. */
 		exinfo.length = exinfo.defaultfrequency * exinfo.numchannels * sizeof(signed short) * 5;	/* Length of PCM data in bytes of whole song (for Sound::getLength) */
 		exinfo.format = FMOD_SOUND_FORMAT_PCM16;													/* Data format of sound. */
 		exinfo.pcmreadcallback = pcmreadcallback;													/* User callback for reading. */

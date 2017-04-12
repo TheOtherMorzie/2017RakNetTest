@@ -50,6 +50,10 @@ public:
 	SP::WavBuffer * getCurrentBuffer();
 	SP::WavBuffer * getOtherBuffer();
 
+	FMOD::Sound * getSound();
+	FMOD::Channel * getChannel();
+	FMOD::System * getSystem();
+
 protected:
 
 	// stream info

@@ -15,9 +15,11 @@ void TTestBufferFiller::thread(int * errorCode, TTestBufferFiller ** interfaceCl
 
 	// start setting up client
 	interfaceMutex->lock();
+	printf("TTestBufferFiller(18): interface mutex locked!\n");
 	TTestBufferFiller * ic = (*interfaceClass);
 	ic->setActive(true);
 	interfaceMutex->unlock();
+	printf("TTestBufferFiller(22): interface mutex unlocked!\n");
 
 	// do the things
 	SP::WavBuffer ** buffer = nullptr;
@@ -35,12 +37,18 @@ void TTestBufferFiller::thread(int * errorCode, TTestBufferFiller ** interfaceCl
 		dataSC = nullptr;
 		// collect
 		interfaceMutex->lock();
+		printf("TTestBufferFiller(40): interface mutex locked!\n");
 		buffer = ic->getBuffer();
 		tbm = ic->getBufferMutex();
 		bufferMutex = &(tbm);
 		file = ic->getFile();
 		dataSC = ic->getDataSubChunk();
 		interfaceMutex->unlock();
+		printf("TTestBufferFiller(47): interface mutex unlocked!\n");
+
+		printf("######### Waiting BufferFiller init...\n");
+		std::chrono::milliseconds timespan(100);
+		std::this_thread::sleep_for(timespan);
 	} while ((buffer == nullptr) || (tbm == nullptr) || (bufferMutex == nullptr) || (file == nullptr) || (dataSC == nullptr));
 
 	bool run = true;
@@ -49,17 +57,40 @@ void TTestBufferFiller::thread(int * errorCode, TTestBufferFiller ** interfaceCl
 		if ((*buffer) != nullptr) // there is a buffer
 		{
 			interfaceMutex->lock();
+			printf("TTestBufferFiller(60): interface mutex locked!\n");
 			if ((*buffer)->isFilled() == false) // not filled
 			{
 				// start filling
+				printf("######### Filling buffer...\n");
 				(*bufferMutex)->lock();
+				printf("TTestBufferFiller(65): buffer mutex locked!\n");
 				SP::WavBuffer * b = (*buffer);
 				int fillAmount = b->m_dataLength - b->m_FillIndex;
-				memcpy(&b->m_data[b->m_FillIndex], &file->getRawData()[dataSC->index + 4], fillAmount);
+				//char * c = new char[fillAmount];
+				//memcpy(&c, &file->getRawData()[dataSC->index + 8], fillAmount);
+				if (dataSC->index + 8 + fillAmount > file->getRawDataLength()) // not enough data in file
+				{
+					printf("######### Not enough sound left?!?!?");
+				}
+				memcpy(&b->m_data[b->m_FillIndex], &file->getRawData()[dataSC->index + 8], fillAmount);
 				b->m_FillIndex += fillAmount;
+				b->m_isDone = false;
 				(*bufferMutex)->unlock();
+				printf("TTestBufferFiller(71): buffer mutex unlocked!\n");
+
+				// stop this locking up the mutex
+				std::chrono::milliseconds timespan(100);
+				std::this_thread::sleep_for(timespan);
+			}
+			else
+			{
+				// stop this locking up the mutex
+				printf("######### Buffer is filled...\n");
+				std::chrono::milliseconds timespan(1000);
+				std::this_thread::sleep_for(timespan);
 			}
 			interfaceMutex->unlock();
+			printf("TTestBufferFiller(79): interface mutex unlocked!\n");
 		}
 	}
 

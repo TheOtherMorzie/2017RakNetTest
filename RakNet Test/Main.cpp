@@ -466,7 +466,7 @@ int main()
 			switch (result)
 			{
 			case WavFile::WFEC_NO_ERROR:
-				printf("wav file loaded properly\n");
+				printf("#########wav file loaded properly\n");
 				break;
 			case WavFile::WFEC_FILE_DOES_NOT_EXIST:
 				printf("wav file does not exist\n");
@@ -497,18 +497,47 @@ int main()
 			std::thread * ttbfThread = new std::thread(TTestBufferFiller::thread, &ttbfError, ttbfp, &ttbfMutex);
 
 			bool run = true;
-			while (ttbf->isActive())
+			while (run)
 			{
-				// avoid locking up the thread
-				printf("waiting on other buffer to be filled\n");
-				std::chrono::milliseconds timespan(100);
-				std::this_thread::sleep_for(timespan);
 				ttbfMutex.lock();
 				run = ttbf->isActive();
 				ttbfMutex.unlock();
+
+				// check if soundPlayer is playing
+				if (sp->getPause())
+				{
+					printf("######### SoundPlayer playstate: true\n");
+				}
+				else
+				{
+					printf("######### SoundPlayer playstate: false\n");
+				}
+
+				FMOD::Sound * s = sp->getSound();
+				FMOD::Channel * c = sp->getChannel();
+				FMOD::System * sy = sp->getSystem();
+
+				unsigned int pos;
+				FMOD_RESULT fResult = c->getPosition(&pos, FMOD_TIMEUNIT_MS);
+				if (fResult != FMOD_OK)
+				{
+					std::string f;
+					f += fResult;
+					f += " - ";
+					f += FMOD_ErrorString(fResult);
+					char * c = new char[f.size()];
+					strcpy(c, f.c_str());
+					THROWC(c);
+				}
+
+				printf("######### SoundPlayer Playback position(ms): %d\n", pos);
+
+				// avoid locking up the thread
+				std::chrono::milliseconds timespan(100);
+				std::this_thread::sleep_for(timespan);
 			}
 
-			printf("bufferFillerDone!\n");
+			printf("#########bufferFillerDone!\n");
 
 			system("pause");
 
@@ -774,6 +803,7 @@ int main()
 				}
 				else if (*returnVal != 0)
 				{
+					interfaceMutex.unlock();
 					threadSetup = true;
 					THROWC(strcat("thread returned error code ", (char*)(*returnVal)));
 				}
